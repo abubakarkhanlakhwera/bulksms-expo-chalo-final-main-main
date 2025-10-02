@@ -1,7 +1,7 @@
 // app/queue.jsx
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { getColors } from "../assets/colors";
 import CapabilityBanner from "../components/CapabilityBanner";
 import ProgressBar from "../components/ProgressBar";
@@ -16,20 +16,37 @@ import { makeQueueItem, QStatus } from "../modules/queue/state";
 import { useQueueRunner } from "../hooks/useQueueRunner";
 
 import {
-  getQueueState,
-  resetQueue,
-  setItems,
-  setRatePerMin,
-  subscribeQueue,
+    getQueueState,
+    resetQueue,
+    setItems,
+    setRatePerMin,
+    subscribeQueue,
 } from "../store/queueStore";
 import { getValidationState, subscribeValidation } from "../store/validationStore";
 
 import { DEFAULT_RATE_PER_MIN } from "../constants/app";
 import {
-  getSettingsState,
-  initSettings,
-  subscribeSettings,
+    getSettingsState,
+    initSettings,
+    subscribeSettings,
 } from "../store/settingsStore";
+
+const formatElapsed = (ms = 0) => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes.toString().padStart(2, "0")}m ${seconds
+      .toString()
+      .padStart(2, "0")}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+  }
+  return `${seconds}s`;
+};
 
 // --------- local store hooks ----------
 function useStores() {
@@ -72,10 +89,40 @@ export default function QueueScreen() {
   const settings = useSettings();
   const { start, pause, stop, setRate } = useQueueRunner();
   const seeded = useRef(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
 
   // banner capability (simulated/native)
   const [cap, setCap] = useState(getCapability());
   useEffect(() => setCap(getCapability()), []);
+
+  useEffect(() => {
+    if (!queue.startedAt) {
+      setElapsedMs(0);
+      return;
+    }
+
+    function calcElapsed(anchor = Date.now()) {
+      return Math.max(0, anchor - queue.startedAt);
+    }
+
+    if (queue.completedAt) {
+      setElapsedMs(calcElapsed(queue.completedAt));
+      return;
+    }
+
+    if (!queue.running) {
+      setElapsedMs(calcElapsed());
+      return;
+    }
+
+    const updateElapsed = () => {
+      setElapsedMs(calcElapsed());
+    };
+
+    updateElapsed();
+    const id = setInterval(updateElapsed, 1000);
+    return () => clearInterval(id);
+  }, [queue.startedAt, queue.running, queue.completedAt]);
 
   // seed from validated rows once
   useEffect(() => {
@@ -141,7 +188,10 @@ export default function QueueScreen() {
   );
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 16 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: c.background }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}
+    >
       {/* Capability banner */}
       <CapabilityBanner />
 
@@ -167,6 +217,22 @@ export default function QueueScreen() {
           pct={prog.pct}
           label={`${prog.done}/${prog.total} done · ${prog.pct}%`}
         />
+
+        <View
+          style={{
+            marginTop: 10,
+            padding: 12,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: c.border,
+            backgroundColor: c.surfaceAlt,
+          }}
+        >
+          <Text style={{ color: c.textMuted, fontSize: 12 }}>Time elapsed</Text>
+          <Text style={{ color: c.text, fontWeight: "700", fontSize: 18 }}>
+            {queue.startedAt ? formatElapsed(elapsedMs) : "—"}
+          </Text>
+        </View>
 
         {/* Daily cap note */}
         {settings.loaded && queue.items.length > settings.dailyCap && (
@@ -302,6 +368,50 @@ export default function QueueScreen() {
       </View>
       {/* ---------- end fallback ---------- */}
 
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: c.border,
+          backgroundColor: c.surface,
+          padding: 16,
+          borderRadius: 12,
+          gap: 12,
+          flexDirection: "row",
+          justifyContent: "space-between",
+        }}
+      >
+        <Pressable
+          onPress={() => router.push("/")}
+          style={{
+            flex: 1,
+            paddingVertical: 12,
+            borderRadius: 10,
+            backgroundColor: c.brand.primary,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: c.brand.onPrimary, fontWeight: "700" }}>
+            ← Dashboard
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push("/settings")}
+          style={{
+            flex: 1,
+            paddingVertical: 12,
+            borderRadius: 10,
+            backgroundColor: c.brand.secondary,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: c.brand.onSecondary, fontWeight: "700" }}>
+            Settings →
+          </Text>
+        </Pressable>
+      </View>
+
       {/* Below controls helper */}
       <View
         style={{
@@ -354,25 +464,25 @@ export default function QueueScreen() {
           backgroundColor: c.surface,
           borderRadius: 12,
           overflow: "hidden",
-          flex: 1,
         }}
       >
-        <FlatList
-          data={queue.items}
-          keyExtractor={(i) => i.id}
-          ItemSeparatorComponent={() => (
-            <View style={{ height: 1, backgroundColor: c.border }} />
-          )}
-          renderItem={({ item }) => <Row item={item} />}
-          ListEmptyComponent={
-            <View style={{ padding: 16 }}>
-              <Text style={{ color: c.textMuted, textAlign: "center" }}>
-                No items. Load from validation via the Start button.
-              </Text>
+        {queue.items.length > 0 ? (
+          queue.items.map((item, idx) => (
+            <View key={item.id}>
+              <Row item={item} />
+              {idx < queue.items.length - 1 && (
+                <View style={{ height: 1, backgroundColor: c.border }} />
+              )}
             </View>
-          }
-        />
+          ))
+        ) : (
+          <View style={{ padding: 16 }}>
+            <Text style={{ color: c.textMuted, textAlign: "center" }}>
+              No items. Load from validation via the Start button.
+            </Text>
+          </View>
+        )}
       </View>
-    </View>
+    </ScrollView>
   );
 }

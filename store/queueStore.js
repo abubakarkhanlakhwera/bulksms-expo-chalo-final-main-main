@@ -10,6 +10,7 @@ const state = {
   ratePerMin: 5,      // default, updated from constants in screen
   running: false,
   startedAt: 0,
+  completedAt: 0,
   dailyCounts: { sent: 0, delivered: 0 },
   lastCountsReset: Date.now(),
 };
@@ -67,14 +68,30 @@ export function updateItemStatus(id, status) {
   notify();
 }
 
-export function setRunning(running) { state.running = running; if (running) state.startedAt = Date.now(); notify(); }
+export function setRunning(running) {
+  state.running = running;
+  if (running) {
+    state.startedAt = Date.now();
+    state.completedAt = 0;
+  }
+  notify();
+}
 export function setRatePerMin(r) { state.ratePerMin = Math.max(1, Number(r)||1); notify(); }
 
 export function resetQueue() {
   state.items = [];
   state.running = false;
   state.startedAt = 0;
+  state.completedAt = 0;
   // Do NOT reset dailyCounts here
+  notify();
+}
+export function setCompletedAt(ts) {
+  if (typeof ts === "number") {
+    state.completedAt = ts;
+  } else {
+    state.completedAt = Date.now();
+  }
   notify();
 }
 

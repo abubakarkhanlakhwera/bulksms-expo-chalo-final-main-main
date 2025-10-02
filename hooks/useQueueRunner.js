@@ -1,33 +1,25 @@
 // hooks/useQueueRunner.jsx
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { canSend } from "../modules/limits"; // helper from modules/limits.js
 import { QStatus } from "../modules/queue/state";
-import { getCapability } from "../services/sms-bridge";
+import { getCapability, sendSms } from "../services/sms-bridge";
 import {
-  getQueueState,
-  markItemSent,
-  setRunning,
-  subscribeQueue,
-  updateItemStatus,
+    getQueueState,
+    markItemSent,
+    setCompletedAt,
+    setRunning,
+    updateItemStatus,
 } from "../store/queueStore";
-
-// SMS bridge
-import { sendSms } from "../services/sms-bridge";
+import { getSettingsState } from "../store/settingsStore";
 
 // --- Hook ---
 export function useQueueRunner() {
-  const [queue, setQueue] = useState(getQueueState());
   const historyRef = useRef([]); // timestamps of sent messages
   const timerRef = useRef(null);
+  const completionShownRef = useRef(false);
+  const dailyCapAlertShownRef = useRef(false);
   const runningRef = useRef(false);
-
-  useEffect(() => {
-    const unsub = subscribeQueue((q) => {
-      setQueue(q);
-    });
-    return () => unsub();
-  }, []);
 
   // ---- helpers ----
   const safeClear = () => {
@@ -37,51 +29,81 @@ export function useQueueRunner() {
     }
   };
 
+  useEffect(() => () => safeClear(), []);
+
   const checkComplete = useCallback(() => {
-    const items = getQueueState().items;
+    const { items, completedAt } = getQueueState();
+    if (completedAt) {
+      return;
+    }
     const done = items.every(
       (i) =>
         i.status === QStatus.SENT ||
         i.status === QStatus.DELIVERED ||
-        i.status === QStatus.FAILED
+        i.status === QStatus.FAILED ||
+        i.status === QStatus.CANCELED
     );
-    if (done && items.length > 0) {
-      runningRef.current = false;
-      setRunning(false);
-      safeClear();
-
-      // 🔴 Show completion popup
-      Alert.alert("🚨 Task Completed", "All queued messages are finished.", [
-        { text: "OK", style: "destructive" },
-      ]);
+    if (!done || items.length === 0) {
+      return;
     }
+
+    runningRef.current = false;
+    setRunning(false);
+    setCompletedAt(Date.now());
+    safeClear();
+
+    if (completionShownRef.current) {
+      return;
+    }
+    completionShownRef.current = true;
+
+    Alert.alert("🚨 Task Completed", "All queued messages are finished.", [
+      { text: "OK", style: "destructive" },
+    ]);
   }, []);
 
   // ---- main runner ----
   const step = useCallback(() => {
     const q = getQueueState();
+    const settings = getSettingsState();
+
+    const cap = Number(settings?.dailyCap) || 0;
+    const sentToday = (q.counts?.dailySent || 0) + (q.counts?.dailyDelivered || 0);
+    if (cap > 0 && sentToday >= cap) {
+      runningRef.current = false;
+      setRunning(false);
+      setCompletedAt(Date.now());
+      safeClear();
+
+      if (!dailyCapAlertShownRef.current) {
+        dailyCapAlertShownRef.current = true;
+        Alert.alert(
+          "Daily cap reached",
+          "Today's send limit is exhausted. Queue stopped until the next reset.",
+          [{ text: "OK", style: "destructive" }]
+        );
+      }
+      return;
+    }
+
     const next = q.items.find((i) => i.status === QStatus.QUEUED);
     if (!runningRef.current || !next) {
       checkComplete();
       return;
     }
 
-    // Respect SMS provider capability
     if (getCapability().mode === "simulated") {
       console.log("Simulated mode – skipping real SMS send.");
     }
 
-    // enforce limits
     if (!canSend(historyRef.current)) {
       console.log("⏸ Rate limit reached. Retrying in 60s…");
       timerRef.current = setTimeout(step, 60 * 1000);
       return;
     }
 
-    // Update item → sending
     updateItemStatus(next.id, QStatus.SENDING);
 
-    // actually send
     sendSms(next.to, next.message)
       .then(() => {
         markItemSent(next.id);
@@ -92,7 +114,7 @@ export function useQueueRunner() {
       })
       .finally(() => {
         checkComplete();
-        timerRef.current = setTimeout(step, (60 / q.ratePerMin) * 1000); // rate control
+        timerRef.current = setTimeout(step, (60 / q.ratePerMin) * 1000);
       });
   }, [checkComplete]);
 
@@ -100,8 +122,29 @@ export function useQueueRunner() {
   const start = useCallback(
     (scheduledAt = null) => {
       if (runningRef.current) return;
+      const settings = getSettingsState();
+      const cap = Number(settings?.dailyCap) || 0;
+      const currentQueue = getQueueState();
+      const sentToday =
+        (currentQueue.counts?.dailySent || 0) +
+        (currentQueue.counts?.dailyDelivered || 0);
+
+      if (cap > 0 && sentToday >= cap) {
+        if (!dailyCapAlertShownRef.current) {
+          dailyCapAlertShownRef.current = true;
+          Alert.alert(
+            "Daily cap reached",
+            "Today's send limit is already exhausted. Increase the limit or wait for reset.",
+            [{ text: "OK", style: "destructive" }]
+          );
+        }
+        return;
+      }
+
       runningRef.current = true;
       setRunning(true);
+      completionShownRef.current = false;
+      dailyCapAlertShownRef.current = false;
 
       // scheduled start
       if (scheduledAt && scheduledAt > new Date()) {
@@ -127,6 +170,9 @@ export function useQueueRunner() {
     setRunning(false);
     safeClear();
     historyRef.current = [];
+    setCompletedAt(0);
+    completionShownRef.current = false;
+    dailyCapAlertShownRef.current = false;
   }, []);
 
   const setRate = useCallback((n) => {
