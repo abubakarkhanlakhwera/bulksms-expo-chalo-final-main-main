@@ -1,6 +1,6 @@
 // app/settings.jsx
-import React, { useEffect, useRef, useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ScrollView, Text, TextInput, View } from "react-native";
 import ThreeDButton from "../components/ThreeDButton";
 import { buttonColors } from "../theme/buttonColors";
 import { useTheme } from "../theme/ThemeContext";
@@ -15,55 +15,73 @@ import {
 import { DEFAULT_RATE_PER_MIN } from "../constants/app";
 import { clearLastSession, loadLastSession } from "../services/storage";
 import { resetFile } from "../store/fileStore";
-import { getQueueState, resetQueue } from "../store/queueStore";
+import { resetQueue } from "../store/queueStore";
 import { resetValidation } from "../store/validationStore";
 
-function Field({ label, children, c }) {
+function Field({ label, children, colors, labelColor }) {
   return (
     <View style={{ gap: 8, marginBottom: 12 }}>
-      <Text style={{ color: c.text, fontWeight: "700" }}>{label}</Text>
+      <Text style={{ color: labelColor ?? colors.text, fontWeight: "700" }}>{label}</Text>
       {children}
     </View>
   );
 }
 
-const Input = React.memo(function Input({ initialValue, onCommit, focusedRef, c, inputRef, multiline }) {
-  const [local, setLocal] = useState(initialValue);
-  useEffect(() => {
-    if (!focusedRef.current) setLocal(initialValue);
-  }, [initialValue, focusedRef]);
+const Input = React.memo(function Input({ value, onChange, onCommit, focusedRef, colors, inputRef, multiline, highlightColor }) {
+  const isHex = typeof highlightColor === "string" && highlightColor.startsWith("#") && highlightColor.length === 7;
+  const placeholderTint = isHex ? `${highlightColor}99` : colors.textMuted;
+  const backgroundTint = isHex ? `${highlightColor}14` : colors.surface;
   return (
     <TextInput
       ref={inputRef}
-      value={local}
-      onChangeText={(t) => setLocal(t)}
+      value={value}
+      onChangeText={(t) => {
+        onChange?.(t);
+      }}
       onFocus={() => {
         focusedRef.current = true;
       }}
       onBlur={() => {
         focusedRef.current = false;
-        onCommit(local);
+        onCommit?.(value);
       }}
       multiline={multiline}
       keyboardType={multiline ? "default" : "number-pad"}
       placeholder={multiline ? "Any custom reminders…" : undefined}
-      placeholderTextColor={c.textMuted}
+      placeholderTextColor={placeholderTint}
       style={{
         minHeight: multiline ? 80 : undefined,
         borderWidth: 1,
-        borderColor: c.border,
+        borderColor: highlightColor ?? colors.border,
         borderRadius: 10,
         paddingVertical: 10,
         paddingHorizontal: 12,
-        color: c.text,
-        backgroundColor: c.surface,
+        color: highlightColor ?? colors.text,
+        backgroundColor: highlightColor ? backgroundTint : colors.surface,
+        shadowColor: highlightColor ? highlightColor : undefined,
+        shadowOpacity: highlightColor ? 0.2 : undefined,
+        shadowOffset: highlightColor ? { width: 0, height: 3 } : undefined,
+        shadowRadius: highlightColor ? 10 : undefined,
+        elevation: highlightColor ? 3 : undefined,
       }}
     />
   );
 });
 
 export default function SettingsScreen() {
-  const { mode, colors: c, toggleTheme } = useTheme();
+  const { mode, colors: themeColors, toggleTheme } = useTheme();
+  const colors = useMemo(() => {
+    if (mode === "dark") return themeColors;
+    return {
+      ...themeColors,
+      background: "#F4F6FF",
+      surface: "#FFFFFF",
+      border: "#CBD5F5",
+      text: "#1E293B",
+      textMuted: "#4C5B7A",
+    };
+  }, [mode, themeColors]);
+  const accent = colors.brand?.primary ?? colors.states.info ?? "#4F46E5";
   const btnColors = buttonColors(mode);
 
   const dailyInputRef = useRef(null);
@@ -79,7 +97,7 @@ export default function SettingsScreen() {
   const noteFocused = useRef(false);
   const [lastSession, setLastSession] = useState(null);
   const [msg, setMsg] = useState("");
-  const [queueState, setQueueState] = useState(getQueueState());
+
 
   useEffect(() => {
     let alive = true;
@@ -102,7 +120,6 @@ export default function SettingsScreen() {
       if (!noteFocused.current) setNotes(s.notes || "");
     });
 
-    setQueueState(getQueueState());
     return () => {
       alive = false;
       unsub();
@@ -129,7 +146,7 @@ export default function SettingsScreen() {
       setDefaultRate(String(s.defaultRate));
       setDailyCap(String(s.dailyCap));
       setNotes(s.notes || "");
-    } catch (e) {
+    } catch (_err) {
       setMsg('❌ Failed to save settings. Please try again.');
     }
   };
@@ -154,48 +171,64 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 16, backgroundColor: c.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
+      >
       {/* Settings card */}
       <View
         style={{
           borderWidth: 1,
-          borderColor: c.border,
-          backgroundColor: c.surface,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
           padding: 16,
           borderRadius: 12,
         }}
       >
-        <Text style={{ color: c.text, fontSize: 16, fontWeight: "800", marginBottom: 8 }}>
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800", marginBottom: 8 }}>
           Settings
         </Text>
 
-        <Field label="Daily cap (recipients/day)" c={c}>
+        <Field
+          label="Daily cap (recipients/day)"
+          colors={colors}
+          labelColor={accent}
+        >
           <Input
-            initialValue={dailyCap}
+            value={dailyCap}
+            onChange={setDailyCap}
             onCommit={setDailyCap}
             focusedRef={dailyFocused}
-            c={c}
+            colors={colors}
             inputRef={dailyInputRef}
+            highlightColor={accent}
           />
-          <Text style={{ color: c.textMuted, fontSize: 12 }}>
+          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
             Used for planning; sending will respect this cap.
           </Text>
         </Field>
 
-        <Field label="Default rate (msgs/min)" c={c}>
+        <Field
+          label="Default rate (msgs/min)"
+          colors={colors}
+          labelColor={accent}
+        >
           <Input
-            initialValue={defaultRate}
+            value={defaultRate}
+            onChange={setDefaultRate}
             onCommit={setDefaultRate}
             focusedRef={defaultFocused}
-            c={c}
+            colors={colors}
             inputRef={defaultInputRef}
+            highlightColor={accent}
           />
-          <Text style={{ color: c.textMuted, fontSize: 12 }}>
+          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
             Pre-fills the Queue rate when seeding items.
           </Text>
-          <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 6 }}>
+          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 6 }}>
             Default:{" "}
-            <Text style={{ fontWeight: "700", color: c.text }}>{DEFAULT_RATE_PER_MIN}</Text>
+            <Text style={{ fontWeight: "700", color: accent }}>{DEFAULT_RATE_PER_MIN}</Text>
           </Text>
         </Field>
 
@@ -219,12 +252,13 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Field label="Notes" c={c}>
+        <Field label="Notes" colors={colors}>
           <Input
-            initialValue={notes}
+            value={notes}
+            onChange={setNotes}
             onCommit={setNotes}
             focusedRef={noteFocused}
-            c={c}
+            colors={colors}
             inputRef={notesInputRef}
             multiline
           />
@@ -235,26 +269,26 @@ export default function SettingsScreen() {
       <View
         style={{
           borderWidth: 1,
-          borderColor: c.border,
-          backgroundColor: c.surface,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
           padding: 16,
           borderRadius: 12,
           gap: 6,
         }}
       >
-        <Text style={{ color: c.text, fontSize: 16, fontWeight: "800" }}>Last Session</Text>
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800" }}>Last Session</Text>
         {lastSession ? (
           <>
-            <Text style={{ color: c.text }}>
+            <Text style={{ color: colors.text }}>
               File:{" "}
               <Text style={{ fontWeight: "700" }}>
                 {lastSession?.fileMeta?.name || "(unknown)"}
               </Text>
             </Text>
-            <Text style={{ color: c.textMuted, fontSize: 12 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>
               Saved: {new Date(lastSession.savedAt).toLocaleString()}
             </Text>
-            <Text style={{ color: c.textMuted, fontSize: 12 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 12 }}>
               Mapping:{" "}
               {lastSession.mapping
                 ? `Name: ${lastSession.mapping.name || "-"}, Phone: ${
@@ -264,15 +298,16 @@ export default function SettingsScreen() {
             </Text>
           </>
         ) : (
-          <Text style={{ color: c.textMuted }}>No previous session saved.</Text>
+          <Text style={{ color: colors.textMuted }}>No previous session saved.</Text>
         )}
       </View>
 
-      {!!msg && (
-        <View style={{ padding: 8 }}>
-          <Text style={{ color: c.states.success, textAlign: "center" }}>{msg}</Text>
-        </View>
-      )}
+        {!!msg && (
+          <View style={{ padding: 8 }}>
+            <Text style={{ color: colors.states.success, textAlign: "center" }}>{msg}</Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
