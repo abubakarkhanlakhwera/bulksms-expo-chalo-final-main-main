@@ -13,6 +13,20 @@ export const QStatus = {
 let __id = 1;
 export const nextId = () => (__id++).toString();
 
+export function hydrateQueueIdCounter(items) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const maxNumericId = items.reduce((max, item) => {
+    const value = Number(item?.id);
+    if (Number.isFinite(value)) {
+      return Math.max(max, value);
+    }
+    return max;
+  }, 0);
+  if (maxNumericId >= __id) {
+    __id = maxNumericId + 1;
+  }
+}
+
 export function makeQueueItem({ name, phoneNormalized, message }) {
   return {
     id: nextId(),

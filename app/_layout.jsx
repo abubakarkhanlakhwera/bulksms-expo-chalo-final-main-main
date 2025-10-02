@@ -5,6 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import TopBarActions from "../components/TopBarActions";
+import { startQueue } from "../modules/queue/runner";
+import { initQueueStore } from "../store/queueStore";
 import { initSettings } from "../store/settingsStore";
 import { ThemeProvider, useTheme } from "../theme/ThemeContext";
 
@@ -13,6 +15,15 @@ function AppStack() {
 
   useEffect(() => {
     initSettings();
+    initQueueStore()
+      .then(({ shouldResume, scheduledAt }) => {
+        if (scheduledAt instanceof Date) {
+          startQueue(scheduledAt);
+        } else if (shouldResume) {
+          startQueue();
+        }
+      })
+      .catch(() => {});
   }, []);
 
   return (

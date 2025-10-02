@@ -1,7 +1,8 @@
 // store/queueStore.jsx
 // Global queue state (no external deps). UI subscribes here.
 
-import { QStatus } from "../modules/queue/state";
+import { QStatus, hydrateQueueIdCounter } from "../modules/queue/state";
+import { loadQueueSnapshot, saveQueueSnapshot } from "../services/storage";
 
 const listeners = new Set();
 
@@ -14,9 +15,125 @@ const state = {
   scheduledFor: 0,
   dailyCounts: { sent: 0, delivered: 0 },
   lastCountsReset: Date.now(),
+  hydrated: false,
 };
 
-function notify() { for (const fn of listeners) fn(getState()); }
+let hydrationPromise = null;
+
+function snapshotForPersistence() {
+  return {
+    items: state.items.map((item) => ({ ...item })),
+    ratePerMin: state.ratePerMin,
+    running: state.running,
+    startedAt: state.startedAt,
+    completedAt: state.completedAt,
+    scheduledFor: state.scheduledFor,
+    dailyCounts: { ...state.dailyCounts },
+    lastCountsReset: state.lastCountsReset,
+  };
+}
+
+function persistQueueState() {
+  if (!state.hydrated) return;
+  const payload = snapshotForPersistence();
+  saveQueueSnapshot(payload).catch(() => {});
+}
+
+function notify() {
+  const snapshot = getState();
+  for (const fn of listeners) fn(snapshot);
+  persistQueueState();
+}
+
+function sanitizeQueueItem(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const allowedStatuses = new Set(Object.values(QStatus));
+  const status = allowedStatuses.has(raw.status) ? raw.status : QStatus.QUEUED;
+
+  return {
+    id: raw.id != null ? String(raw.id) : Math.random().toString(36).slice(2, 10),
+    name: raw.name ?? "",
+    to: raw.to ?? "",
+    message: raw.message ?? "",
+    status,
+    attempts: Number(raw.attempts) || 0,
+    lastError: raw.lastError ?? "",
+    startedAt: Number(raw.startedAt) || 0,
+    endedAt: Number(raw.endedAt) || 0,
+    durationMs: Number(raw.durationMs) || 0,
+    messageId: raw.messageId ?? "",
+  };
+}
+
+export function initQueueStore() {
+  if (state.hydrated) {
+    return Promise.resolve({ shouldResume: false, scheduledAt: null });
+  }
+  if (hydrationPromise) return hydrationPromise;
+
+  const promise = (async () => {
+    let shouldResume = false;
+    let resumeSchedule = null;
+
+    try {
+      const snapshot = await loadQueueSnapshot();
+      if (snapshot) {
+        const restoredItems = Array.isArray(snapshot.items)
+          ? snapshot.items.map(sanitizeQueueItem).filter(Boolean)
+          : [];
+
+        state.items = restoredItems.map((item) =>
+          item.status === QStatus.SENDING ? { ...item, status: QStatus.QUEUED } : item
+        );
+        state.ratePerMin = Math.max(1, Number(snapshot.ratePerMin) || state.ratePerMin);
+        state.startedAt = Number(snapshot.startedAt) || 0;
+        state.completedAt = Number(snapshot.completedAt) || 0;
+        state.scheduledFor = Number(snapshot.scheduledFor) || 0;
+        state.dailyCounts = {
+          sent: Number(snapshot.dailyCounts?.sent) || 0,
+          delivered: Number(snapshot.dailyCounts?.delivered) || 0,
+        };
+        state.lastCountsReset = Number(snapshot.lastCountsReset) || Date.now();
+
+        hydrateQueueIdCounter(state.items);
+
+        const now = Date.now();
+        const hasQueueable = state.items.some((item) => item.status === QStatus.QUEUED);
+        const hadRunning = !!snapshot.running;
+        const hasSchedule =
+          typeof state.scheduledFor === "number" && state.scheduledFor > 0 && hasQueueable;
+
+        if (hasSchedule) {
+          if (state.scheduledFor > now + 1000) {
+            resumeSchedule = new Date(state.scheduledFor);
+          } else if (state.scheduledFor > now) {
+            resumeSchedule = new Date(state.scheduledFor);
+          } else {
+            shouldResume = true;
+          }
+        }
+
+        if (hadRunning && hasQueueable && !resumeSchedule) {
+          shouldResume = true;
+        }
+      }
+    } catch (err) {
+      console.log("queueStore hydrate error", err);
+    }
+
+    state.running = false;
+    state.hydrated = true;
+    notify();
+
+    return { shouldResume, scheduledAt: resumeSchedule };
+  })();
+
+  hydrationPromise = promise.finally(() => {
+    hydrationPromise = null;
+  });
+
+  return promise;
+}
 
 export function subscribeQueue(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 export function getQueueState() { return getState(); }

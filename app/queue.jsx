@@ -234,6 +234,9 @@ export default function QueueScreen() {
 
   // seed from validated rows once
   useEffect(() => {
+    if (!queue.hydrated) {
+      return;
+    }
     // If queue is empty, seed as before
     if (!seeded.current) {
       const canSeed =
@@ -265,7 +268,15 @@ export default function QueueScreen() {
       setRatePerMin(rate);
       setRate(rate);
     }
-  }, [queue.items.length, validation.validRows, settings.loaded, settings.defaultRate, setRate, queue.running]);
+  }, [
+    queue.hydrated,
+    queue.items.length,
+    validation.validRows,
+    settings.loaded,
+    settings.defaultRate,
+    setRate,
+    queue.running,
+  ]);
 
   // progress — recompute whenever queue state changes (items may be mutated in-place)
   const prog = useMemo(() => computeProgress(queue.items), [queue]);
