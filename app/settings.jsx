@@ -1,7 +1,9 @@
 // app/settings.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, TextInput, View } from "react-native";
+
 import ThreeDButton from "../components/ThreeDButton";
+import TopQuickNav from "../components/TopQuickNav";
 import { buttonColors } from "../theme/buttonColors";
 import { useTheme } from "../theme/ThemeContext";
 
@@ -152,7 +154,7 @@ export default function SettingsScreen() {
   };
 
   const resetDefaults = async () => {
-    const saved = await updateSettings({ dailyCap: 700, defaultRate: 5, notes: "" });
+    const saved = await updateSettings({ dailyCap: 700, defaultRate: 3, notes: "" });
     setDailyCap(String(saved.dailyCap));
     setDefaultRate(String(saved.defaultRate));
     setNotes(saved.notes || "");
@@ -176,6 +178,8 @@ export default function SettingsScreen() {
         contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
       >
+        <TopQuickNav colors={colors} active="settings" hideSettings />
+
       {/* Settings card */}
       <View
         style={{

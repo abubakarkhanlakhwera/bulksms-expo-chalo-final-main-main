@@ -1,7 +1,7 @@
 // constants/app.jsx
 // Defaults & caps used by queue/rate control
-export const DEFAULT_RATE_PER_MIN = 5;     // msgs/min
-export const MIN_RATE_PER_MIN = 5;
+export const DEFAULT_RATE_PER_MIN = 3;     // msgs/min
+export const MIN_RATE_PER_MIN = 3;
 export const MAX_RATE_PER_MIN = 60;
 
 export const MAX_RETRIES = 2;               // simulated retries for transient errors

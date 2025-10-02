@@ -1,7 +1,4 @@
-// components/QueueControls.jsx
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { useState } from "react";
-import { Platform, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { buttonColors } from "../theme/buttonColors";
 import { useTheme } from "../theme/ThemeContext";
 import ThreeDButton from "./ThreeDButton";
@@ -11,31 +8,17 @@ export default function QueueControls({
   rate,
   defaultRate,
   counts,
+  scheduledFor,
   onStart,
   onPause,
   onStop,
 }) {
-  const [showPicker, setShowPicker] = useState(false);
-  const [scheduledAt, setScheduledAt] = useState(null);
   const { mode, colors } = useTheme();
   const btnColors = buttonColors(mode);
-
-  const handleDateChange = (event, date) => {
-    // Android closes automatically
-    if (Platform.OS === "android") {
-      setShowPicker(false);
-    }
-
-    // If no event or dismissed, just return
-    if (!event || event.type === "dismissed" || !date) {
-      return;
-    }
-
-    // Confirmed: update state
-    if (event.type === "set") {
-      setScheduledAt(date);
-    }
-  };
+  const scheduledForDisplay =
+    typeof scheduledFor === "number" && scheduledFor > Date.now()
+      ? new Date(scheduledFor).toLocaleString()
+      : null;
 
   return (
     <View style={{ gap: 16 }}>
@@ -52,9 +35,9 @@ export default function QueueControls({
 
       {!running ? (
         <ThreeDButton
-          label={scheduledAt ? "⏰ Start Scheduled" : "🚀 Start Now"}
+          label="🚀 Start Now"
           {...btnColors.start}
-          onPress={() => (scheduledAt ? onStart(scheduledAt) : onStart())}
+          onPress={onStart}
         />
       ) : (
         <ThreeDButton label="⏸ Pause" {...btnColors.pause} onPress={onPause} />
@@ -63,27 +46,27 @@ export default function QueueControls({
       <ThreeDButton label="🛑 Stop" {...btnColors.stop} onPress={onStop} />
 
       <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-        Rate: {rate || defaultRate} / min · Total: {counts.total} · Queued:{" "}
-        {counts.queued}
+        Rate: {rate || defaultRate} / min · Total: {counts.total} · Queued: {counts.queued}
       </Text>
 
-      <ThreeDButton
-        label={
-          scheduledAt
-            ? `📅 Scheduled: ${scheduledAt.toLocaleString()}`
-            : "📅 Pick Schedule Time"
-        }
-        {...btnColors.schedule}
-        onPress={() => setShowPicker(true)}
-      />
-
-      {showPicker && (
-        <DateTimePicker
-          mode="datetime"
-          value={scheduledAt || new Date()}
-          display={Platform.OS === "ios" ? "inline" : "default"}
-          onChange={handleDateChange}
-        />
+      {scheduledForDisplay && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surfaceAlt,
+            gap: 4,
+          }}
+        >
+          <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+            Next run scheduled
+          </Text>
+          <Text style={{ color: colors.text, fontWeight: "700" }}>
+            {scheduledForDisplay}
+          </Text>
+        </View>
       )}
     </View>
   );

@@ -1,12 +1,16 @@
 // app/queue.jsx
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { getColors } from "../assets/colors";
 import CapabilityBanner from "../components/CapabilityBanner";
 import ProgressBar from "../components/ProgressBar";
 import QueueControls from "../components/QueueControls";
 import StatusChip from "../components/StatusChip";
+import TopQuickNav from "../components/TopQuickNav";
 
 import { __emitDeliveryForTests, getCapability } from "../services/sms-bridge";
 
@@ -90,10 +94,114 @@ export default function QueueScreen() {
   const { start, pause, stop, setRate } = useQueueRunner();
   const seeded = useRef(false);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [countdownMs, setCountdownMs] = useState(0);
+  const autoStartRef = useRef(0);
+  const [scheduleDraft, setScheduleDraft] = useState(null);
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false);
 
   // banner capability (simulated/native)
   const [cap, setCap] = useState(getCapability());
   useEffect(() => setCap(getCapability()), []);
+
+  useEffect(() => {
+    if (!queue.scheduledFor) {
+      autoStartRef.current = 0;
+      setCountdownMs(0);
+      return;
+    }
+
+    autoStartRef.current = queue.scheduledFor;
+
+    const tick = () => {
+      const remaining = queue.scheduledFor - Date.now();
+      setCountdownMs(Math.max(0, remaining));
+      if (remaining <= 0 && !queue.running && autoStartRef.current !== -1) {
+        autoStartRef.current = -1;
+        start();
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [queue.scheduledFor, queue.running, start]);
+
+  const applySchedule = useCallback(
+    (date) => {
+      if (!(date instanceof Date)) return;
+      start(date);
+      setShowSchedulePicker(false);
+      setScheduleDraft(null);
+    },
+    [start]
+  );
+
+  const openSchedulePicker = useCallback(() => {
+    const base =
+      scheduleDraft instanceof Date
+        ? scheduleDraft
+        : new Date(Date.now() + 5 * 60 * 1000);
+
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        mode: "date",
+        value: base,
+        onChange: (_, pickedDate) => {
+          if (!(pickedDate instanceof Date)) {
+            return;
+          }
+          DateTimePickerAndroid.open({
+            mode: "time",
+            value: pickedDate,
+            onChange: (_, pickedTime) => {
+              if (!(pickedTime instanceof Date)) {
+                return;
+              }
+              const combined = new Date(pickedDate);
+              combined.setHours(pickedTime.getHours());
+              combined.setMinutes(pickedTime.getMinutes());
+              combined.setSeconds(0, 0);
+              applySchedule(combined);
+            },
+          });
+        },
+      });
+      return;
+    }
+
+    setScheduleDraft(base);
+    setShowSchedulePicker(true);
+  }, [applySchedule, scheduleDraft]);
+
+  const cancelSchedule = useCallback(() => {
+    setShowSchedulePicker(false);
+    setScheduleDraft(null);
+  }, []);
+
+  const confirmSchedule = useCallback(() => {
+    if (scheduleDraft instanceof Date) {
+      applySchedule(scheduleDraft);
+    }
+  }, [applySchedule, scheduleDraft]);
+
+  useEffect(() => {
+    const tag = "queue-schedule";
+    const shouldHoldWake =
+      typeof queue.scheduledFor === "number" &&
+      queue.scheduledFor > Date.now() &&
+      !queue.running &&
+      !queue.completedAt;
+
+    if (shouldHoldWake) {
+      activateKeepAwakeAsync(tag).catch(() => {});
+    } else {
+      deactivateKeepAwake(tag);
+    }
+
+    return () => {
+      deactivateKeepAwake(tag);
+    };
+  }, [queue.scheduledFor, queue.running, queue.completedAt]);
 
   useEffect(() => {
     if (!queue.startedAt) {
@@ -161,6 +269,8 @@ export default function QueueScreen() {
 
   // progress — recompute whenever queue state changes (items may be mutated in-place)
   const prog = useMemo(() => computeProgress(queue.items), [queue]);
+  const sentSoFar = (queue?.counts?.sent || 0) + (queue?.counts?.delivered || 0);
+  const failedSoFar = queue?.counts?.failed || 0;
 
   // rows
   const Row = ({ item }) => (
@@ -192,6 +302,7 @@ export default function QueueScreen() {
       style={{ flex: 1, backgroundColor: c.background }}
       contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}
     >
+      <TopQuickNav colors={c} active="queue" />
       {/* Capability banner */}
       <CapabilityBanner />
 
@@ -221,18 +332,86 @@ export default function QueueScreen() {
         <View
           style={{
             marginTop: 10,
-            padding: 12,
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: c.border,
-            backgroundColor: c.surfaceAlt,
+            flexDirection: "row",
+            gap: 12,
           }}
         >
-          <Text style={{ color: c.textMuted, fontSize: 12 }}>Time elapsed</Text>
-          <Text style={{ color: c.text, fontWeight: "700", fontSize: 18 }}>
-            {queue.startedAt ? formatElapsed(elapsedMs) : "—"}
-          </Text>
+          <View
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: c.border,
+              backgroundColor: c.surfaceAlt,
+              gap: 8,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="time-outline" size={18} color={c.brand.primary} />
+              <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: "600" }}>
+                Time elapsed
+              </Text>
+            </View>
+            <Text style={{ color: c.text, fontWeight: "700", fontSize: 18 }}>
+              {queue.startedAt ? formatElapsed(elapsedMs) : "—"}
+            </Text>
+            {queue.startedAt && (
+              <Text style={{ color: c.textMuted, fontSize: 11 }}>
+                Started {new Date(queue.startedAt).toLocaleTimeString()}
+              </Text>
+            )}
+          </View>
+
+          <View
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: c.border,
+              backgroundColor: c.surfaceAlt,
+              gap: 8,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="paper-plane-outline" size={18} color={c.brand.secondary} />
+              <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: "600" }}>
+                Messages sent
+              </Text>
+            </View>
+            <Text style={{ color: c.text, fontWeight: "700", fontSize: 18 }}>
+              {sentSoFar}/{queue?.counts?.total || 0}
+            </Text>
+            <Text style={{ color: failedSoFar ? c.states?.danger || "#DC2626" : c.textMuted, fontSize: 11 }}>
+              {failedSoFar ? `${failedSoFar} failed so far` : `Success rate ${(prog.total ? Math.round((sentSoFar / prog.total) * 100) : 0)}%`}
+            </Text>
+          </View>
         </View>
+
+        {queue.scheduledFor && queue.scheduledFor > Date.now() && (
+          <View
+            style={{
+              marginTop: 10,
+              padding: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: c.border,
+              backgroundColor: c.surfaceAlt,
+              gap: 4,
+            }}
+          >
+            <Text style={{ color: c.textMuted, fontSize: 12 }}>Scheduled start</Text>
+            <Text style={{ color: c.text, fontWeight: "700" }}>
+              {new Date(queue.scheduledFor).toLocaleString()}
+            </Text>
+            <Text style={{ color: c.textMuted, fontSize: 12 }}>
+              Starts in {formatElapsed(countdownMs)}
+            </Text>
+          </View>
+        )}
 
         {/* Daily cap note */}
         {settings.loaded && queue.items.length > settings.dailyCap && (
@@ -277,6 +456,7 @@ export default function QueueScreen() {
           rate={queue.ratePerMin}
           defaultRate={settings?.defaultRate || DEFAULT_RATE_PER_MIN}
           counts={queue.counts}
+          scheduledFor={queue.scheduledFor}
           onStart={start}
           onPause={pause}
           onStop={() => {
@@ -431,6 +611,86 @@ export default function QueueScreen() {
             Open Report →
           </Text>
         </Pressable>
+
+        <Pressable
+          onPress={openSchedulePicker}
+          style={{
+            marginTop: 10,
+            paddingVertical: 12,
+            borderRadius: 10,
+            backgroundColor: c.brand.primary,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: c.brand.onPrimary, fontWeight: "700" }}>
+            📅 Schedule Start
+          </Text>
+        </Pressable>
+
+        {Platform.OS === "ios" && showSchedulePicker && (
+          <View
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: c.border,
+              backgroundColor: c.surfaceAlt,
+              gap: 12,
+            }}
+          >
+            <Text style={{ color: c.textMuted, fontSize: 12 }}>
+              Choose the scheduled start time
+            </Text>
+            <DateTimePicker
+              mode="datetime"
+              display="inline"
+              value={scheduleDraft || new Date()}
+              onChange={(_, date) => {
+                if (date instanceof Date) {
+                  setScheduleDraft(date);
+                }
+              }}
+            />
+            {scheduleDraft instanceof Date && (
+              <Text style={{ color: c.text, fontWeight: "700" }}>
+                {scheduleDraft.toLocaleString()}
+              </Text>
+            )}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                onPress={cancelSchedule}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: c.textMuted, fontWeight: "600" }}>
+                  Cancel
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmSchedule}
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  backgroundColor: c.brand.primary,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: c.brand.onPrimary, fontWeight: "700" }}>
+                  Schedule
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Dev tool: only in simulated mode */}
         {cap.mode === "simulated" && (

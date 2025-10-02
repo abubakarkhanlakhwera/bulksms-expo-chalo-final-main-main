@@ -11,6 +11,7 @@ const state = {
   running: false,
   startedAt: 0,
   completedAt: 0,
+  scheduledFor: 0,
   dailyCounts: { sent: 0, delivered: 0 },
   lastCountsReset: Date.now(),
 };
@@ -73,6 +74,7 @@ export function setRunning(running) {
   if (running) {
     state.startedAt = Date.now();
     state.completedAt = 0;
+    state.scheduledFor = 0;
   }
   notify();
 }
@@ -83,6 +85,7 @@ export function resetQueue() {
   state.running = false;
   state.startedAt = 0;
   state.completedAt = 0;
+  state.scheduledFor = 0;
   // Do NOT reset dailyCounts here
   notify();
 }
@@ -91,6 +94,15 @@ export function setCompletedAt(ts) {
     state.completedAt = ts;
   } else {
     state.completedAt = Date.now();
+  }
+  notify();
+}
+
+export function setScheduledFor(ts) {
+  if (typeof ts === "number" && ts > 0) {
+    state.scheduledFor = ts;
+  } else {
+    state.scheduledFor = 0;
   }
   notify();
 }

@@ -7,7 +7,7 @@ const state = {
   loaded: false,
   dailyCap: 700,
   // changed default daily cap to 500
-  defaultRate: 5,
+  defaultRate: 3,
   notes: "",
   lastDailyCapReset: Date.now(),
 };

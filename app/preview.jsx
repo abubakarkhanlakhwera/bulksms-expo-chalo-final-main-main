@@ -3,6 +3,7 @@ import { Link, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Animated, SafeAreaView, Text, TouchableOpacity, View } from "react-native";
 import { getColors, hexToRgba } from "../assets/colors";
+import TopQuickNav from "../components/TopQuickNav";
 import { getState, subscribe } from "../store/fileStore";
 
 import EmptyState from "../components/EmptyState"; // ← added
@@ -91,6 +92,9 @@ export default function PreviewScreen() {
   }, [hasData]);
   return (
     <SafeAreaView style={{ flex: 1 }}>
+      <View style={{ padding: 16, paddingBottom: 0 }}>
+        <TopQuickNav colors={c} active="preview" />
+      </View>
       {hasData ? (
         <RecipientList
           validated={validated}

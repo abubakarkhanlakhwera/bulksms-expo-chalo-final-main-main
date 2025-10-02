@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { getColors, hexToRgba } from "../assets/colors";
 import FilePickerCard from "../components/FilePickerCard";
+import TopQuickNav from "../components/TopQuickNav";
 import { validateRows } from "../modules/validation/validateRows";
 import { saveLastSession } from "../services/storage";
 import {
@@ -89,7 +90,7 @@ export default function ImportScreen() {
               .map((x) => String(x).trim().toLowerCase())
               .includes(h.toLowerCase())
         )
-      : [];
+  : [];
 
   // ---- Auto navigate disabled as requested ----
   const autoNavigate = false;
@@ -229,7 +230,11 @@ export default function ImportScreen() {
   };
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: c.background }}
+      contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
+    >
+      <TopQuickNav colors={c} active="import" />
       {/* 1) Choose CSV/XLSX */}
       <FilePickerCard />
 
