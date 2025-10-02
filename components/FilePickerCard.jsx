@@ -3,7 +3,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { useState } from "react";
 import { Platform, Text, View } from "react-native";
-import { getColors } from "../assets/colors";
+import { getColors, hexToRgba } from "../assets/colors";
 import { parsePickedFile } from "../modules/parsing/detect";
 import { saveLastSession } from "../services/storage";
 import { resetFile, setFileMeta, setParsed } from "../store/fileStore";
@@ -162,8 +162,26 @@ export default function FilePickerCard() {
 
   const summaryIsMulti =
     localMeta && (localMeta.mime === "multiple" || Array.isArray(localMeta.files));
-  const summaryColor = summaryIsMulti ? (c.states?.success || "#16a34a") : c.text;
-  const accentColor = c.states?.warning || "#f59e0b";
+
+  const accentPalette = [
+    c.states?.info || "#2563eb",
+    "#f97316",
+    "#a855f7",
+    "#ec4899",
+    "#22d3ee",
+    "#facc15",
+    "#fb7185",
+    "#38bdf8",
+    "#c084fc",
+    "#f87171",
+  ];
+  const detailPalette = accentPalette.slice(1);
+
+  const summaryColor = summaryIsMulti ? accentPalette[0] : c.text;
+  const summaryBg = summaryIsMulti
+    ? hexToRgba(accentPalette[0], mode === "dark" ? 0.22 : 0.12)
+    : c.surfaceAlt;
+  const summaryBorder = summaryIsMulti ? accentPalette[0] : c.border;
 
   return (
     <View
@@ -233,8 +251,8 @@ export default function FilePickerCard() {
         <View
           style={{
             borderWidth: 1,
-            borderColor: c.border,
-            backgroundColor: c.surfaceAlt,
+            borderColor: summaryBorder,
+            backgroundColor: summaryBg,
             padding: 12,
             borderRadius: 10,
           }}
@@ -250,14 +268,20 @@ export default function FilePickerCard() {
           )}
           {Array.isArray(localMeta.files) && localMeta.files.length > 0 && (
             <View style={{ marginTop: 8, gap: 4 }}>
-              {localMeta.files.map((fileMeta, idx) => (
-                <Text
-                  key={`${fileMeta.name || idx}-${idx}`}
-                  style={{ color: idx === 0 ? c.textMuted : accentColor, fontSize: 12 }}
-                >
-                  • {fileMeta.name} ({sizeLabel(fileMeta.size)})
-                </Text>
-              ))}
+              {localMeta.files.map((fileMeta, idx) => {
+                const detailColor =
+                  idx === 0
+                    ? c.textMuted
+                    : detailPalette[(idx - 1) % detailPalette.length];
+                return (
+                  <Text
+                    key={`${fileMeta.name || idx}-${idx}`}
+                    style={{ color: detailColor, fontSize: 12 }}
+                  >
+                    • {fileMeta.name} ({sizeLabel(fileMeta.size)})
+                  </Text>
+                );
+              })}
             </View>
           )}
         </View>
