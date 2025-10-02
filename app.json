@@ -1,0 +1,55 @@
+{
+  "expo": {
+  "name": "bulksms-expo",
+  "slug": "bulksms-expo",
+  "version": "1.0.0",
+  "orientation": "portrait",
+  "icon": "./assets/images/icon.png",
+  "scheme": "bulksmsexpo",
+  "userInterfaceStyle": "automatic",
+  "newArchEnabled": true,
+  "sdkVersion": "54.0.0",
+  "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.anonymous.bulksmsexpo",
+      "versionCode": 1,
+      "permissions": [
+        "SEND_SMS"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e91d0480-83ff-4e38-9599-657d8b1d6507"
+      }
+    },
+    "owner": "lakhwera001"
+  }
+}

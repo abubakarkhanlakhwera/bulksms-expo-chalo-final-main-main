@@ -1,0 +1,77 @@
+Finalized functional spec (this document)
+App: Local-only Bulk SMS (Expo/React Native, JSX screens)
+
+Flow:
+Import → Validate → Preview/Dry-run → Queue (rate-controlled) → Report/Export
+Settings inform caps/rates; a native SMS bridge can slot in later without changing screens.
+
+Screens:
+- app/import.jsx: pick CSV/XLSX, map headers to name/phone/message
+- app/preview.jsx: validate + show All/Valid/Invalid, reasons, parts
+- app/queue.jsx: live console (Start/Pause/Stop, rate/min, progress)
+- app/report.jsx: KPIs + export failed rows (CSV)
+- app/settings.jsx: daily cap, default rate, notes
+
+Core Components:
+FilePickerCard, ColumnMapper, ValidationSummary, RecipientList (virtualized),
+QueueControls, ProgressBar, StatCard, Toolbar, EmptyState
+
+Data contracts (final):
+
+RawRow
+  { name, phone, message }
+
+ValidatedRow
+  {
+    id: string
+    name: string
+    phoneRaw?: string
+    phoneNormalized?: string
+    message: string
+    encoding?: "GSM-7" | "UCS-2"
+    parts?: number
+    valid: boolean
+    reason?: string
+  }
+
+QueueItem
+  {
+    id: string
+    name: string
+    to: string           // normalized phone
+    message: string
+    status: "queued"|"sending"|"sent"|"delivered"|"failed"|"canceled"
+    attempts: number
+    lastError?: string
+    startedAt?: number
+    endedAt?: number
+    durationMs?: number
+    messageId?: string
+  }
+
+Settings
+  {
+    dailyCap: number
+    defaultRate: number
+    notes: string
+  }
+
+Validation rules (PK focus):
+- Normalize to +92XXXXXXXXXX from 03XXXXXXXXX / 3XXXXXXXXX / keep +92…
+- Empty message → invalid
+- Estimate parts: GSM-7 ≈ 153/part, UCS-2 ≈ 67/part; set encoding, parts
+
+Queue behavior:
+- State transitions: queued → sending → sent → delivered/failed (cancel allowed)
+- Rate scheduler: msgs/min → interval with small jitter; pause/stop supported
+
+Analytics (reporting):
+- Counters: Total/Valid/Invalid (validation); Sent/Delivered/Failed (queue)
+- Ratios: successRate
+- Averages: parts, attempts, durationMs
+- Export: build “failed-only” CSV string
+
+Done criteria:
+- End-to-end works locally with the simulator
+- Settings persist; queue uses stored defaults
+- Native SMS bridge swap later without touching screens/components

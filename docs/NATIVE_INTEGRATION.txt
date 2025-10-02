@@ -1,0 +1,41 @@
+Native Integration (Android) — SmsManager seam
+
+Goal:
+Keep JS API stable so native can replace simulator without UI changes.
+
+JS API (services/sms-bridge.jsx):
+- getCapability(): { mode:"native"|"simulated", canSend:boolean, notes:string }
+- onDeliveryReport(handler): unsubscribe
+  // handler(evt: { messageId?:string, to?:string, status:"delivered"|"failed", reason?:string })
+- sendSms({ to, message, requestDeliveryReport? }): Promise<{
+    status: "sent"|"delivered"|"failed",
+    messageId?: string,
+    reason?: string
+  }>
+
+Native Android module (Kotlin/Java):
+- Name: SmsBridge
+- Expose method:
+  Promise<Map> sendSms(Map payload) // { to, message, requestDeliveryReport:boolean }
+  Return a map with { status, messageId?, reason? }
+
+- Delivery events:
+  Emit RN event "delivery" with payload { messageId, to, status:"delivered"|"failed", reason? }
+  JS side subscribes via NativeEventEmitter and forwards to onDeliveryReport()
+
+Permissions & notes:
+- SEND_SMS (dangerous), READ_PHONE_STATE (if needed for SIM state)
+- On some Android versions, being the Default SMS app increases reliability
+- Respect user consent & carrier policies; throttle within configured rates
+
+Swap-in steps:
+1) expo prebuild (or bare): add android native module SmsBridge
+2) Implement sendSms() using SmsManager or RoleManager (if default SMS role)
+3) Emit "delivery" events on status updates
+4) Rebuild: JS getCapability() should now report { mode:"native", canSend:true }
+5) No changes needed in screens/components (boundary holds)
+
+Testing:
+- In Expo/dev, simulator path remains (mode:"simulated")
+- For native builds, unit test the bridge; in JS, you can still call
+  __emitDeliveryForTests() to verify the onDeliveryReport pipeline
