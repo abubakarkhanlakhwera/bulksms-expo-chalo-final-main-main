@@ -2,17 +2,17 @@
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { getColors } from "../assets/colors";
+import { getColors, hexToRgba } from "../assets/colors";
 import FilePickerCard from "../components/FilePickerCard";
 import { validateRows } from "../modules/validation/validateRows";
 import { saveLastSession } from "../services/storage";
 import {
-  clearSelected,
-  getState,
-  setMapping,
-  setSelectedIndices,
-  subscribe,
-  toggleSelectedIndex,
+    clearSelected,
+    getState,
+    setMapping,
+    setSelectedIndices,
+    subscribe,
+    toggleSelectedIndex,
 } from "../store/fileStore";
 import { resetValidation, setValidationResult } from "../store/validationStore";
 
@@ -32,7 +32,7 @@ const REQUIRED_HEADERS = ["Name", "Mobile", "Message"];
 export default function ImportScreen() {
   const c = getColors("light");
   const router = useRouter();
-  const { headers, mapping, rowCount, fileMeta } = useFileStore();
+  const { headers, mapping, rowCount, fileMeta, selected } = useFileStore();
   const [showMapping, setShowMapping] = useState(false); // hide mapping by default to increase space
 
   // Access rows and selection via the store snapshot when needed
@@ -43,6 +43,21 @@ export default function ImportScreen() {
     const r = Array.isArray(store.rows) ? store.rows : [];
     return r; // show all rows
   }, [store.rows]);
+
+  const selectedSet = useMemo(() => new Set(selected ?? []), [selected]);
+  const selectedCount = selectedSet.size;
+  const totalRows = previewRows.length;
+  const allSelected = totalRows > 0 && selectedCount === totalRows;
+  const anySelected = selectedCount > 0;
+  const selectAllColor = c.brand?.secondary || "#0d9488";
+  const deselectAllColor = c.brand?.accent || "#f59e0b";
+  const zebraEven = c.surface;
+  const zebraOdd = hexToRgba(c.brand?.accent || "#f59e0b", 0.08);
+  const selectedRowColor = c.brand?.primarySoft || hexToRgba(c.brand?.primary || "#4f46e5", 0.12);
+  const summaryBg = hexToRgba(c.brand?.secondary || "#0d9488", 0.1);
+  const summaryBorder = c.brand?.secondary || "#0d9488";
+  const selectAllBg = c.brand?.secondarySoft || hexToRgba(selectAllColor, 0.12);
+  const deselectAllBg = c.brand?.accentSoft || hexToRgba(deselectAllColor, 0.16);
 
   // Apply hard-coded mapping once headers are available
   useEffect(() => {
@@ -98,6 +113,10 @@ export default function ImportScreen() {
 
   const onToggle = (i) => toggleSelectedIndex(i);
   const onDeselectAll = () => clearSelected();
+  const onSelectAll = () => {
+    if (totalRows === 0) return;
+    setSelectedIndices(Array.from({ length: totalRows }, (_, idx) => idx));
+  };
 
   const Checkbox = ({ checked }) => (
     <View
@@ -118,9 +137,48 @@ export default function ImportScreen() {
   );
 
   const renderRow = ({ item, index }) => {
-    const display = item && typeof item === "object" ? Object.values(item).map((v) => String(v ?? "")).join(" · ") : String(item ?? "");
-    const s = getState();
-    const checked = (s.selected || new Set()).has(index);
+    const isRecord = item && typeof item === "object" && !Array.isArray(item);
+    const checked = selectedSet.has(index);
+    const baseBg = index % 2 === 0 ? zebraEven : zebraOdd;
+    const backgroundColor = checked ? selectedRowColor : baseBg;
+
+    const safe = (value) => (value === undefined || value === null ? "" : String(value).trim());
+
+    let nameValue = "";
+    let phoneValue = "";
+    let messageValue = "";
+
+    if (isRecord) {
+      nameValue = safe(item[mapping?.name] ?? item.Name ?? item.name);
+      phoneValue = safe(
+        item[mapping?.phone] ??
+          item.Mobile ??
+          item.mobile ??
+          item.Phone ??
+          item.phone
+      );
+      messageValue = safe(
+        item[mapping?.message] ??
+          item.Message ??
+          item.message ??
+          item.Text ??
+          item.text
+      );
+    } else {
+      nameValue = safe(item);
+    }
+
+    const fallbackDisplay = isRecord
+      ? Object.values(item || {}).map((v) => safe(v)).join(" · ")
+      : nameValue;
+
+    const messagePreview =
+      messageValue.length > 80 ? `${messageValue.slice(0, 77)}…` : messageValue;
+
+    const nameColor = checked ? (c.brand?.primary || "#4f46e5") : c.text;
+    const phoneColor = checked ? (c.brand?.primary || "#4f46e5") : (c.states?.info || "#2563eb");
+    const messageColor = checked ? (c.brand?.primary || "#4f46e5") : c.textMuted;
+
     return (
       <TouchableOpacity
         activeOpacity={0.85}
@@ -132,13 +190,40 @@ export default function ImportScreen() {
           paddingHorizontal: 12,
           borderBottomWidth: 1,
           borderColor: c.border,
-          backgroundColor: checked ? c.brand.primarySoft : c.surface,
+          backgroundColor,
         }}
       >
         <Checkbox checked={checked} />
-        <Text style={{ color: c.text, flex: 1 }} numberOfLines={1}>
-          {display || "(empty row)"}
-        </Text>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ color: nameColor, fontWeight: "700" }} numberOfLines={1}>
+            {nameValue || fallbackDisplay || "(empty row)"}
+          </Text>
+          {isRecord ? (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                flexWrap: "wrap",
+              }}
+            >
+              <Text style={{ color: phoneColor, fontSize: 12 }} numberOfLines={1}>
+                {phoneValue || "—"}
+              </Text>
+              {phoneValue && messagePreview ? (
+                <Text style={{ color: c.textMuted, fontSize: 12 }}>•</Text>
+              ) : null}
+              {messagePreview ? (
+                <Text
+                  style={{ color: messageColor, fontSize: 12, flexShrink: 1 }}
+                  numberOfLines={1}
+                >
+                  {messagePreview}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -275,19 +360,37 @@ export default function ImportScreen() {
           <View
             style={{
               borderWidth: 1,
-              borderColor: c.border,
-              backgroundColor: c.surface,
-              padding: 8,
-              borderRadius: 8,
+              borderColor: summaryBorder,
+              backgroundColor: summaryBg,
+              padding: 10,
+              borderRadius: 10,
               gap: 6,
-              alignItems: 'flex-start'
+              alignItems: "flex-start",
             }}
           >
-            <Text style={{ color: c.text, fontSize: 13 }}>
-              File: <Text style={{ fontWeight: "700", fontSize: 13 }}>{fileMeta?.name || "(unnamed)"}</Text>
+            <Text
+              style={{
+                color: c.textMuted,
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
+              File summary
             </Text>
-            <Text style={{ color: c.textMuted, fontSize: 12 }}>
-              Headers: {headers.length} · Rows: {rowCount}
+            <Text style={{ color: c.text, fontSize: 14, fontWeight: "700" }} numberOfLines={2}>
+              {fileMeta?.name || "(unnamed)"}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <Text style={{ color: c.states?.success || "#16a34a", fontWeight: "700" }}>
+                Headers: <Text style={{ color: c.states?.success || "#16a34a" }}>{headers.length}</Text>
+              </Text>
+              <Text style={{ color: c.states?.info || "#2563eb", fontWeight: "700" }}>
+                Rows: <Text style={{ color: c.states?.info || "#2563eb" }}>{rowCount}</Text>
+              </Text>
+            </View>
+            <Text style={{ color: anySelected ? selectAllColor : c.textMuted, fontSize: 12 }}>
+              Selected: <Text style={{ fontWeight: "700" }}>{selectedCount}</Text> / {totalRows}
             </Text>
           </View>
 
@@ -301,10 +404,58 @@ export default function ImportScreen() {
               </Text>
             )}
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <TouchableOpacity onPress={onDeselectAll} style={{ padding: 10 }} activeOpacity={0.8} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Text style={{ color: c.text, fontWeight: '700' }}>Deselect All</Text>
-                  </TouchableOpacity>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={onSelectAll}
+                  disabled={totalRows === 0 || allSelected}
+                  activeOpacity={0.85}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: selectAllColor,
+                    backgroundColor: selectAllBg,
+                    opacity: totalRows === 0 || allSelected ? 0.4 : 1,
+                  }}
+                >
+                  <Text style={{ color: selectAllColor, fontWeight: "700" }}>
+                    Select All
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={onDeselectAll}
+                  disabled={!anySelected}
+                  activeOpacity={0.85}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: deselectAllColor,
+                    backgroundColor: deselectAllBg,
+                    opacity: anySelected ? 1 : 0.4,
+                  }}
+                >
+                  <Text style={{ color: deselectAllColor, fontWeight: "700" }}>
+                    Deselect All
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={{ color: c.textMuted, fontSize: 12 }}>
+                {selectedCount} selected
+              </Text>
             </View>
           </View>
 

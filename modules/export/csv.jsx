@@ -1,9 +1,9 @@
 // modules/export/csv.jsx
 // Build and persist CSV from rows; share/copy helpers.
 
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
 import * as Clipboard from "expo-clipboard";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 
 function csvEscape(value = "") {
   const s = String(value ?? "");

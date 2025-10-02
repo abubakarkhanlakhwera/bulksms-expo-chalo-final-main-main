@@ -4,6 +4,7 @@ module.exports = {
   moduleNameMapper: {
     "^react-native$": "<rootDir>/__mocks__/react-native.js",
     "^expo-file-system$": "<rootDir>/__mocks__/expo-file-system.js",
+    "^expo-file-system/legacy$": "<rootDir>/__mocks__/expo-file-system.js",
     "^expo-sharing$": "<rootDir>/__mocks__/expo-sharing.js",
     "^expo-clipboard$": "<rootDir>/__mocks__/expo-clipboard.js",
     "^expo-router$": "<rootDir>/__mocks__/expo-router.js",

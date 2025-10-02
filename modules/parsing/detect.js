@@ -1,5 +1,5 @@
 // modules/parsing/detect.js
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { parseCsvString } from "./csv";
 import { parseXlsxBase64 } from "./xlsx";
 

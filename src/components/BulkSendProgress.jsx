@@ -1,15 +1,16 @@
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-type Props = {
-  total: number; sent: number; failed: number;
-  paused?: boolean; cancelled?: boolean;
-  onPause?: () => void; onResume?: () => void; onCancel?: () => void;
-};
-
 export function BulkSendProgress({
-  total, sent, failed, paused, cancelled, onPause, onResume, onCancel
-}: Props) {
+  total,
+  sent,
+  failed,
+  paused,
+  cancelled,
+  onPause,
+  onResume,
+  onCancel,
+}) {
   const progress = total > 0 ? (sent + failed) / total : 0;
 
   return (
