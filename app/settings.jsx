@@ -178,7 +178,7 @@ export default function SettingsScreen() {
         contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
       >
-        <TopQuickNav colors={colors} active="settings" hideSettings />
+  <TopQuickNav colors={colors} active="settings" preset="settings" />
 
       {/* Settings card */}
       <View

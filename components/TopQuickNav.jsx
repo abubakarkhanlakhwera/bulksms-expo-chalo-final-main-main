@@ -68,6 +68,15 @@ export default function TopQuickNav({ colors, active, hideSettings = false, pres
       return importItems;
     }
 
+    if (preset === "settings") {
+      return [
+        { key: "queue", label: "Queue", icon: "list-circle-outline", route: "/queue" },
+        { key: "preview", label: "Preview", icon: "eye-outline", route: "/preview" },
+        { key: "report", label: "Report", icon: "analytics-outline", route: "/report" },
+        { key: "dashboard", label: "Dashboard", icon: "home-outline", route: "/" },
+      ];
+    }
+
     const defaultItems = [
       { key: "queue", label: "Queue", icon: "list-circle-outline", route: "/queue" },
       { key: "preview", label: "Preview", icon: "eye-outline", route: "/preview" },

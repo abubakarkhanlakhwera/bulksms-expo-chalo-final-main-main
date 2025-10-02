@@ -302,7 +302,7 @@ export default function QueueScreen() {
       style={{ flex: 1, backgroundColor: c.background }}
       contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}
     >
-  <TopQuickNav colors={c} preset="queue" />
+      <TopQuickNav colors={c} preset="queue" />
       {/* Capability banner */}
       <CapabilityBanner />
 
