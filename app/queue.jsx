@@ -302,7 +302,7 @@ export default function QueueScreen() {
       style={{ flex: 1, backgroundColor: c.background }}
       contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}
     >
-      <TopQuickNav colors={c} active="queue" />
+  <TopQuickNav colors={c} preset="queue" />
       {/* Capability banner */}
       <CapabilityBanner />
 
@@ -548,50 +548,6 @@ export default function QueueScreen() {
       </View>
       {/* ---------- end fallback ---------- */}
 
-      <View
-        style={{
-          borderWidth: 1,
-          borderColor: c.border,
-          backgroundColor: c.surface,
-          padding: 16,
-          borderRadius: 12,
-          gap: 12,
-          flexDirection: "row",
-          justifyContent: "space-between",
-        }}
-      >
-        <Pressable
-          onPress={() => router.push("/")}
-          style={{
-            flex: 1,
-            paddingVertical: 12,
-            borderRadius: 10,
-            backgroundColor: c.brand.primary,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ color: c.brand.onPrimary, fontWeight: "700" }}>
-            ← Dashboard
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push("/settings")}
-          style={{
-            flex: 1,
-            paddingVertical: 12,
-            borderRadius: 10,
-            backgroundColor: c.brand.secondary,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ color: c.brand.onSecondary, fontWeight: "700" }}>
-            Settings →
-          </Text>
-        </Pressable>
-      </View>
-
       {/* Below controls helper */}
       <View
         style={{
@@ -604,11 +560,43 @@ export default function QueueScreen() {
         }}
       >
         <Text style={{ color: c.textMuted, fontSize: 12 }}>
-          When you’re done sending, view the analytics and export invalid rows.
+          Need to double-check recipients before sending? Jump back to the preview screen to validate changes.
         </Text>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Pressable
+            onPress={() => router.push("/preview")}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              borderRadius: 10,
+              backgroundColor: c.brand.primary,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: c.brand.onPrimary, fontWeight: "700" }}>
+              ← Preview
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push("/")}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              borderRadius: 10,
+              backgroundColor: c.brand.secondary,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: c.brand.onSecondary, fontWeight: "700" }}>
+              Dashboard →
+            </Text>
+          </Pressable>
+        </View>
         <Pressable onPress={() => router.push("/report")}>
-          <Text style={{ color: c.brand.primary, fontWeight: "700" }}>
-            Open Report →
+          <Text style={{ color: c.brand.primary, fontWeight: "700", marginTop: 8 }}>
+            View Report ↗
           </Text>
         </Pressable>
 

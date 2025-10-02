@@ -234,7 +234,7 @@ export default function ImportScreen() {
       style={{ flex: 1, backgroundColor: c.background }}
       contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
     >
-      <TopQuickNav colors={c} active="import" />
+  <TopQuickNav colors={c} preset="import" />
       {/* 1) Choose CSV/XLSX */}
       <FilePickerCard />
 

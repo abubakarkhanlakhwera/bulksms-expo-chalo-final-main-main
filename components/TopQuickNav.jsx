@@ -6,6 +6,8 @@ import { hexToRgba } from "../assets/colors";
 
 const fallbackColors = {
   queue: "#0D9488",
+  preview: "#4F46E5",
+  report: "#6366F1",
   dashboard: "#4F46E5",
   settings: "#F59E0B",
 };
@@ -13,14 +15,19 @@ const fallbackColors = {
 const getAccent = (colors, key) => {
   if (!colors?.brand) return fallbackColors[key];
   if (key === "queue") return colors.brand.secondary || fallbackColors.queue;
+  if (key === "preview") return colors.brand.primary || fallbackColors.preview;
   if (key === "dashboard") return colors.brand.primary || fallbackColors.dashboard;
+  if (key === "report") return colors.brand.info || fallbackColors.report;
   if (key === "settings") return colors.brand.accent || fallbackColors.settings;
-  return fallbackColors.dashboard;
+  return colors.brand.primary || fallbackColors.preview;
 };
 
 const getSelectedTextColor = (colors, key) => {
   if (!colors?.brand) return "#FFFFFF";
   if (key === "queue") return colors.brand.onSecondary || "#0B1220";
+  if (key === "preview") return colors.brand.onPrimary || "#FFFFFF";
+  if (key === "dashboard") return colors.brand.onPrimary || "#FFFFFF";
+  if (key === "report") return colors.brand.onInfo || "#FFFFFF";
   if (key === "settings") return colors.brand.onAccent || "#0B1220";
   return colors.brand.onPrimary || "#FFFFFF";
 };
@@ -32,18 +39,45 @@ const tone = (hex, alpha) => {
   return `rgba(79, 70, 229, ${alpha})`;
 };
 
-export default function TopQuickNav({ colors, active, hideSettings = false }) {
+export default function TopQuickNav({ colors, active, hideSettings = false, preset = "default" }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const items = [
-    { key: "queue", label: "Queue", icon: "list-circle-outline", route: "/queue" },
-    { key: "dashboard", label: "Dashboard", icon: "home-outline", route: "/" },
-  ];
+  const items = (() => {
+    if (preset === "queue") {
+      const queueItems = [
+        { key: "dashboard", label: "Dashboard", icon: "home-outline", route: "/" },
+        { key: "preview", label: "Preview", icon: "eye-outline", route: "/preview" },
+        { key: "report", label: "Report", icon: "analytics-outline", route: "/report" },
+      ];
+      if (!hideSettings) {
+        queueItems.push({ key: "settings", label: "Settings", icon: "settings-outline", route: "/settings" });
+      }
+      return queueItems;
+    }
 
-  if (!hideSettings) {
-    items.push({ key: "settings", label: "Settings", icon: "settings-outline", route: "/settings" });
-  }
+    if (preset === "import") {
+      const importItems = [
+        { key: "queue", label: "Queue", icon: "list-circle-outline", route: "/queue" },
+        { key: "dashboard", label: "Dashboard", icon: "home-outline", route: "/" },
+        { key: "report", label: "Report", icon: "analytics-outline", route: "/report" },
+      ];
+      if (!hideSettings) {
+        importItems.push({ key: "settings", label: "Settings", icon: "settings-outline", route: "/settings" });
+      }
+      return importItems;
+    }
+
+    const defaultItems = [
+      { key: "queue", label: "Queue", icon: "list-circle-outline", route: "/queue" },
+      { key: "preview", label: "Preview", icon: "eye-outline", route: "/preview" },
+      { key: "report", label: "Report", icon: "analytics-outline", route: "/report" },
+    ];
+    if (!hideSettings) {
+      defaultItems.push({ key: "settings", label: "Settings", icon: "settings-outline", route: "/settings" });
+    }
+    return defaultItems;
+  })();
 
   const determineActive = (item) => {
     if (active) return active === item.key;
@@ -69,6 +103,7 @@ export default function TopQuickNav({ colors, active, hideSettings = false }) {
             style={{
               flex: 1,
               paddingVertical: 12,
+              paddingHorizontal: 10,
               borderRadius: 14,
               borderWidth: 1,
               borderColor,
@@ -85,7 +120,15 @@ export default function TopQuickNav({ colors, active, hideSettings = false }) {
             }}
           >
             <Ionicons name={item.icon} size={18} color={iconColor} />
-            <Text style={{ color: textColor, fontWeight: "700" }}>{item.label}</Text>
+            <Text
+              style={{ color: textColor, fontWeight: "700", fontSize: 13, lineHeight: 16 }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              adjustsFontSizeToFit
+              minimumFontScale={0.9}
+            >
+              {item.label}
+            </Text>
           </Pressable>
         );
       })}
