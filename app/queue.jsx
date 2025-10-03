@@ -34,6 +34,7 @@ import {
     initSettings,
     subscribeSettings,
 } from "../store/settingsStore";
+import { toLocalPakistaniFormat } from "../utils/phone-display";
 
 const formatElapsed = (ms = 0) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -249,6 +250,7 @@ export default function QueueScreen() {
           makeQueueItem({
             name: r.name,
             phoneNormalized: r.phoneNormalized,
+            phoneRaw: r.phoneRaw,
             message: r.message,
           })
         );
@@ -294,7 +296,7 @@ export default function QueueScreen() {
         }}
       >
         <Text style={{ color: c.text, fontWeight: "700" }}>
-          {item.name || "(no name)"} — {item.to}
+          {item.name || "(no name)"} — {toLocalPakistaniFormat(item.toDisplay || item.to)}
         </Text>
         <StatusChip status={item.status} />
       </View>

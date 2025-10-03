@@ -1,0 +1,24 @@
+# Gradle cache and build files
+android/.gradle/
+android/build/
+android/app/build/
+
+# Node modules
+node_modules/
+
+# Build artifacts
+*.log
+*.tmp
+*.cache
+
+# IDE files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/

@@ -2,12 +2,21 @@
 import { useMemo, useState } from "react";
 import { FlatList, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { getColors } from "../assets/colors";
+import { debugPhoneFormats } from "../utils/debug-phone-format";
+import { toLocalPakistaniFormat } from "../utils/phone-display";
 import EmptyState from "./EmptyState";
 
 export default function RecipientList({ validated = [], ListHeaderComponent, ListFooterComponent }) {
   const c = getColors("light");
   const [filter, setFilter] = useState("all"); // all | valid | invalid
   const [q, setQ] = useState("");
+
+  // Debug: Log phone formats when data changes
+  useMemo(() => {
+    if (validated.length > 0) {
+      debugPhoneFormats(validated);
+    }
+  }, [validated]);
 
   const filtered = useMemo(() => {
     let rows = validated;
@@ -17,7 +26,8 @@ export default function RecipientList({ validated = [], ListHeaderComponent, Lis
       const needle = q.trim().toLowerCase();
       rows = rows.filter((r) =>
         (r.name || "").toLowerCase().includes(needle) ||
-        (r.phoneNormalized || r.phoneRaw || "").toLowerCase().includes(needle) ||
+        (r.phoneRaw || "").toLowerCase().includes(needle) ||
+        toLocalPakistaniFormat(r.phoneNormalized || r.phoneRaw || "").toLowerCase().includes(needle) ||
         (r.reason || "").toLowerCase().includes(needle)
       );
     }
@@ -58,7 +68,7 @@ export default function RecipientList({ validated = [], ListHeaderComponent, Lis
           {ok ? "VALID" : "INVALID"}
         </Text>
         <Text style={{ color: c.text, fontSize: 14, fontWeight: "700" }}>
-          {(item.name || "(no name)")} — {(item.phoneNormalized || item.phoneRaw || "(no phone)")}
+          {(item.name || "(no name)")} — {toLocalPakistaniFormat(item.phoneNormalized || item.phoneRaw || "(no phone)")}
         </Text>
         <Text style={{ color: c.textMuted, fontSize: 13 }} numberOfLines={3}>
           {item.message}

@@ -27,11 +27,12 @@ export function hydrateQueueIdCounter(items) {
   }
 }
 
-export function makeQueueItem({ name, phoneNormalized, message }) {
+export function makeQueueItem({ name, phoneNormalized, phoneRaw, message }) {
   return {
     id: nextId(),
     name,
-    to: phoneNormalized,
+    to: phoneNormalized, // For SMS sending (with +92)
+    toDisplay: phoneRaw || phoneNormalized, // For display (original format)
     message,
     status: QStatus.QUEUED,
     attempts: 0,

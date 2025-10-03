@@ -1,6 +1,7 @@
 // components/FailedMiniList.jsx
 import { Text, View } from "react-native";
 import { getColors } from "../assets/colors";
+import { toLocalPakistaniFormat } from "../utils/phone-display";
 
 export default function FailedMiniList({ invalidRows = [] }) {
   const c = getColors("light");
@@ -20,7 +21,7 @@ export default function FailedMiniList({ invalidRows = [] }) {
           <View key={item.id}>
             <View style={{ padding: 12 }}>
               <Text style={{ color: c.text, fontWeight: "700" }}>
-                {item.name || "(no name)"} — {item.phoneRaw || "(no phone)"}
+                {item.name || "(no name)"} — {toLocalPakistaniFormat(item.phoneRaw || "(no phone)")}
               </Text>
               <Text style={{ color: c.textMuted, fontSize: 12 }} numberOfLines={2}>
                 {item.message}

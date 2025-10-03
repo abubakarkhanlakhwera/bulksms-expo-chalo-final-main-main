@@ -125,13 +125,26 @@ const step = () => {
   }
 
   updateItemStatus(next.id, QStatus.SENDING);
+  console.log(`🚀 Sending SMS to: ${next.to}, Message: ${next.message.substring(0, 50)}...`);
 
-  sendSms(next.to, next.message)
-    .then(() => {
-      markItemSent(next.id);
-      history.push(Date.now());
+  sendSms({
+    to: next.to,
+    message: next.message,
+    requestDeliveryReport: true
+  })
+    .then((result) => {
+      console.log(`📱 SMS Result:`, result);
+      if (result.status === "sent" || result.status === "delivered") {
+        markItemSent(next.id);
+        history.push(Date.now());
+        console.log(`✅ SMS sent successfully to ${next.to}`);
+      } else {
+        console.log(`❌ SMS failed to ${next.to}:`, result.reason);
+        updateItemStatus(next.id, QStatus.FAILED, result.reason || "Send failed");
+      }
     })
     .catch((err) => {
+      console.log(`💥 SMS Error to ${next.to}:`, err);
       updateItemStatus(next.id, QStatus.FAILED, err.message || "Error");
     })
     .finally(() => {

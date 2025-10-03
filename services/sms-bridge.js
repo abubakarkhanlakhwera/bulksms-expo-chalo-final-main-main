@@ -50,7 +50,7 @@
  *   sendSms({ to, message, requestDeliveryReport? }): Promise<{ status, messageId?, reason? }>
  */
 
-import { Platform, NativeModules, NativeEventEmitter } from "react-native";
+import { NativeEventEmitter, NativeModules, Platform } from "react-native";
 
 // ------- tiny event hub for delivery reports -------
 const deliverySubscribers = new Set();
@@ -63,7 +63,7 @@ export function onDeliveryReport(handler) {
 }
 function emitDelivery(evt) {
   for (const fn of deliverySubscribers) {
-    try { fn(evt); } catch (e) { /* noop */ }
+    try { fn(evt); } catch (_e) { /* noop */ }
   }
 }
 
@@ -94,12 +94,12 @@ export function getCapability() {
   if (hasNative()) {
     return { mode: "native", canSend: true, notes: "Using NativeModules.SmsBridge" };
   }
-  // Expo/sim path
+  // For development/testing, allow simulated sending
   const expo = Platform.select({ ios: "Expo", android: "Expo", default: "JS" });
   return {
     mode: "simulated",
-    canSend: false,
-    notes: `${expo} runtime — native silent SMS not available; using simulator.`,
+    canSend: true, // Enable simulated sending for testing
+    notes: `${expo} runtime — using SMS simulator for testing.`,
   };
 }
 
@@ -120,9 +120,11 @@ async function simSend({ to, message, requestDeliveryReport }) {
 
   const messageId = `sim-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
   const roll = Math.random();
-  if (roll < 0.08) return { status: "failed", reason: "Network error (sim)" };
+  
+  // Simulate success most of the time for testing
+  if (roll < 0.05) return { status: "failed", reason: "Network error (sim)" };
 
-  const deliveredNow = roll < 0.36; // sometimes returns delivered immediately
+  const deliveredNow = roll < 0.3; // sometimes returns delivered immediately
   if (deliveredNow) return { status: "delivered", messageId };
 
   // else "sent" now; optionally emit async delivery later

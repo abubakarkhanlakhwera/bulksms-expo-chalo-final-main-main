@@ -19,6 +19,7 @@ import { clearLastSession, loadLastSession } from "../services/storage";
 import { resetFile } from "../store/fileStore";
 import { resetQueue } from "../store/queueStore";
 import { resetValidation } from "../store/validationStore";
+import { checkSMSPermissions, runSMSDiagnostics, showTroubleshootingGuide } from "../utils/sms-diagnostics";
 
 function Field({ label, children, colors, labelColor }) {
   return (
@@ -267,6 +268,38 @@ export default function SettingsScreen() {
             multiline
           />
         </Field>
+      </View>
+
+      {/* SMS Diagnostics Section */}
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+          padding: 16,
+          borderRadius: 12,
+        }}
+      >
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800", marginBottom: 12 }}>
+          SMS Diagnostics
+        </Text>
+        <View style={{ gap: 8 }}>
+          <ThreeDButton
+            label="🔍 Run SMS Test"
+            {...btnColors.primary}
+            onPress={runSMSDiagnostics}
+          />
+          <ThreeDButton
+            label="🔒 Check Permissions"
+            {...btnColors.settings}
+            onPress={checkSMSPermissions}
+          />
+          <ThreeDButton
+            label="🛠️ Troubleshooting Guide"
+            {...btnColors.info}
+            onPress={showTroubleshootingGuide}
+          />
+        </View>
       </View>
 
       {/* Last session card */}
