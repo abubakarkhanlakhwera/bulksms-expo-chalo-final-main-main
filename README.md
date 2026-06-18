@@ -1,50 +1,33 @@
-# Welcome to your Expo app 👋
+# Bulk SMS Expo App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An Expo/React Native mobile app experiment for bulk SMS workflows.
 
-## Get started
+## Purpose
 
-1. Install dependencies
+Sending repeated SMS messages manually is slow and hard to track. This app explores a mobile workflow for preparing and sending SMS batches from a structured interface.
 
-   ```bash
-   npm install
-   ```
+## What This Shows
 
-2. Start the app
+- Expo mobile app structure
+- Bulk-message workflow thinking
+- React Native UI practice
 
-   ```bash
-   npx expo start
-   ```
+## Stack
 
-In the output, you'll find options to open the app in a
+- Expo
+- React Native
+- JavaScript
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Status / Safety Note
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Do not commit phone numbers, message lists, or private campaign data.
 
-## Get a fresh project
+## Next Improvements
 
-When you're ready, run:
+- Create a cleaner repository name for public sharing
+- Add screenshots of the message flow
+- Document data privacy and SMS permission handling
 
-```bash
-npm run reset-project
-```
+## Author
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Abubakar Khan Lakhwera
